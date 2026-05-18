@@ -428,12 +428,8 @@ export default function HomePage() {
                       <li key={`panel-${clip.id}`} className="rounded border border-slate-200 p-2">
                         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
                           <p className="font-semibold text-slate-800">{clip.title}</p>
-                          <p className="text-slate-600">
-                            Start {formatTimestamp(clip.start_seconds)} ({clip.start_seconds.toFixed(1)}s)
-                          </p>
-                          <p className="text-slate-600">
-                            End {formatTimestamp(clip.end_seconds)} ({clip.end_seconds.toFixed(1)}s)
-                          </p>
+                          <p className="text-slate-600">Start {formatTimestamp(clip.start_seconds)}</p>
+                          <p className="text-slate-600">End {formatTimestamp(clip.end_seconds)}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <button
@@ -485,8 +481,8 @@ export default function HomePage() {
                       <div>
                         <p className="text-sm font-semibold">{clip.title}</p>
                         <p className="text-xs text-slate-600">
-                          Score {clip.score.toFixed(1)} | {clip.start_seconds.toFixed(1)}s -{" "}
-                          {clip.end_seconds.toFixed(1)}s
+                          Score {clip.score.toFixed(1)} | {formatTimestamp(clip.start_seconds)} -{" "}
+                          {formatTimestamp(clip.end_seconds)}
                         </p>
                       </div>
                       <p className="text-xs uppercase text-slate-500">{clip.status}</p>
