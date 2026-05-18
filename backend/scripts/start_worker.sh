@@ -2,7 +2,6 @@
 set -euo pipefail
 
 echo "Starting Celery worker..."
-python -m app.db.init_db
 # IMPORTANT:
 # Tasks are routed to the "uploads" queue in celery_app.py.
 # The worker must subscribe to that queue or uploads will appear "stuck".

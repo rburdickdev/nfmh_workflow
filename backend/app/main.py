@@ -12,6 +12,18 @@ from app.db.init_db import init_db
 settings = get_settings()
 configure_logging()
 
+
+def ensure_storage_dirs() -> None:
+    os.makedirs(settings.storage_path, exist_ok=True)
+    os.makedirs(settings.uploads_dir, exist_ok=True)
+    os.makedirs(settings.transcripts_dir, exist_ok=True)
+    os.makedirs(settings.clips_dir, exist_ok=True)
+    os.makedirs(settings.captions_dir, exist_ok=True)
+
+
+# Must exist before StaticFiles mounts at import time.
+ensure_storage_dirs()
+
 app = FastAPI(title=settings.app_name)
 
 # Frontend integration point:
@@ -28,11 +40,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
-    os.makedirs(settings.storage_path, exist_ok=True)
-    os.makedirs(settings.uploads_dir, exist_ok=True)
-    os.makedirs(settings.transcripts_dir, exist_ok=True)
-    os.makedirs(settings.clips_dir, exist_ok=True)
-    os.makedirs(settings.captions_dir, exist_ok=True)
+    ensure_storage_dirs()
 
 
 @app.get("/health")
