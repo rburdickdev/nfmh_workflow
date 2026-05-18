@@ -3,8 +3,8 @@ import os
 import shutil
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -83,17 +83,68 @@ def get_upload(upload_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/uploads/{upload_id}/audio")
-def stream_uploaded_audio(upload_id: str, db: Session = Depends(get_db)):
+def stream_uploaded_audio(upload_id: str, request: Request, db: Session = Depends(get_db)):
     upload = db.query(Upload).filter(Upload.id == upload_id).first()
     if not upload:
         raise HTTPException(status_code=404, detail="Upload not found")
     if not os.path.exists(upload.storage_path):
         raise HTTPException(status_code=404, detail="Uploaded audio file not found")
+    file_size = os.path.getsize(upload.storage_path)
+    range_header = request.headers.get("range")
+    media_type = upload.mime_type or "audio/mpeg"
 
-    return FileResponse(
-        path=upload.storage_path,
-        media_type=upload.mime_type or "audio/mpeg",
-        filename=upload.original_filename,
+    if not range_header:
+        return FileResponse(
+            path=upload.storage_path,
+            media_type=media_type,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Disposition": f'inline; filename="{upload.original_filename}"',
+            },
+        )
+
+    range_value = range_header.replace("bytes=", "").strip()
+    if "-" not in range_value:
+        raise HTTPException(status_code=416, detail="Invalid Range header")
+
+    start_text, end_text = range_value.split("-", 1)
+    try:
+        if start_text == "":
+            suffix_length = int(end_text)
+            start = max(file_size - suffix_length, 0)
+            end = file_size - 1
+        else:
+            start = int(start_text)
+            end = int(end_text) if end_text else file_size - 1
+    except ValueError as exc:
+        raise HTTPException(status_code=416, detail="Invalid Range header") from exc
+
+    if start >= file_size or start < 0 or end < start:
+        raise HTTPException(status_code=416, detail="Requested range not satisfiable")
+    end = min(end, file_size - 1)
+    content_length = end - start + 1
+
+    def iter_file_range(path: str, start_offset: int, length: int):
+        with open(path, "rb") as file_obj:
+            file_obj.seek(start_offset)
+            remaining = length
+            while remaining > 0:
+                chunk = file_obj.read(min(8192, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+    return StreamingResponse(
+        iter_file_range(upload.storage_path, start, content_length),
+        status_code=206,
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Content-Length": str(content_length),
+            "Content-Disposition": f'inline; filename="{upload.original_filename}"',
+        },
     )
 
 

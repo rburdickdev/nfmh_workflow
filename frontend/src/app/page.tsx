@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   approveClip,
   getApiBaseUrl,
@@ -31,6 +31,10 @@ export default function HomePage() {
   const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(null);
   const [showUploadPlayer, setShowUploadPlayer] = useState(false);
   const [activeClipPlayerId, setActiveClipPlayerId] = useState<string | null>(null);
+  const uploadAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [uploadDuration, setUploadDuration] = useState(0);
+  const [uploadCurrentTime, setUploadCurrentTime] = useState(0);
+  const [isUploadPlaying, setIsUploadPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,7 +92,17 @@ export default function HomePage() {
   useEffect(() => {
     setShowUploadPlayer(false);
     setActiveClipPlayerId(null);
+    setUploadDuration(0);
+    setUploadCurrentTime(0);
+    setIsUploadPlaying(false);
   }, [selectedUploadId]);
+
+  useEffect(() => {
+    if (!showUploadPlayer && uploadAudioRef.current) {
+      uploadAudioRef.current.pause();
+      setIsUploadPlaying(false);
+    }
+  }, [showUploadPlayer]);
 
   async function onUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -133,6 +147,47 @@ export default function HomePage() {
     const minutes = Math.floor(wholeSeconds / 60);
     const remainder = wholeSeconds % 60;
     return `${minutes}:${remainder.toString().padStart(2, "0")}`;
+  }
+
+  const uploadTimelineClipRanges = useMemo(() => {
+    if (uploadDuration <= 0) {
+      return [];
+    }
+    return clips
+      .map((clip) => {
+        const start = Math.max(0, Math.min(clip.start_seconds, uploadDuration));
+        const end = Math.max(start, Math.min(clip.end_seconds, uploadDuration));
+        return {
+          id: clip.id,
+          title: clip.title,
+          start,
+          end,
+          leftPercent: (start / uploadDuration) * 100,
+          widthPercent: Math.max(((end - start) / uploadDuration) * 100, 0.6)
+        };
+      })
+      .sort((a, b) => a.start - b.start);
+  }, [clips, uploadDuration]);
+
+  async function toggleUploadPlayback() {
+    if (!uploadAudioRef.current) {
+      return;
+    }
+    if (uploadAudioRef.current.paused) {
+      await uploadAudioRef.current.play();
+      setIsUploadPlaying(true);
+      return;
+    }
+    uploadAudioRef.current.pause();
+    setIsUploadPlaying(false);
+  }
+
+  function onUploadSeek(event: ChangeEvent<HTMLInputElement>) {
+    const targetSeconds = Number(event.target.value);
+    setUploadCurrentTime(targetSeconds);
+    if (uploadAudioRef.current) {
+      uploadAudioRef.current.currentTime = targetSeconds;
+    }
   }
 
   return (
@@ -227,9 +282,75 @@ export default function HomePage() {
                     {showUploadPlayer ? "Hide Upload Player" : "Play Uploaded MP3/WAV"}
                   </button>
                   {showUploadPlayer && (
-                    <audio controls className="mt-2 w-full">
-                      <source src={`${apiBaseUrl}/uploads/${selectedUpload.id}/audio`} type={selectedUpload.mime_type} />
-                    </audio>
+                    <div className="mt-3 space-y-2 rounded border border-slate-200 bg-slate-50 p-3">
+                      <audio
+                        ref={uploadAudioRef}
+                        preload="metadata"
+                        className="hidden"
+                        onLoadedMetadata={() => {
+                          const duration = uploadAudioRef.current?.duration ?? 0;
+                          setUploadDuration(Number.isFinite(duration) ? duration : 0);
+                        }}
+                        onTimeUpdate={() => {
+                          setUploadCurrentTime(uploadAudioRef.current?.currentTime ?? 0);
+                        }}
+                        onPlay={() => setIsUploadPlaying(true)}
+                        onPause={() => setIsUploadPlaying(false)}
+                        onEnded={() => setIsUploadPlaying(false)}
+                      >
+                        <source
+                          src={`${apiBaseUrl}/uploads/${selectedUpload.id}/audio`}
+                          type={selectedUpload.mime_type}
+                        />
+                      </audio>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <button
+                          onClick={toggleUploadPlayback}
+                          className="rounded bg-blue-600 px-3 py-1 font-semibold text-white"
+                        >
+                          {isUploadPlaying ? "Pause" : "Play"}
+                        </button>
+                        <span className="font-medium text-slate-700">
+                          {formatTimestamp(uploadCurrentTime)} / {formatTimestamp(uploadDuration)}
+                        </span>
+                        {uploadTimelineClipRanges.length > 0 && (
+                          <span className="text-slate-600">
+                            {uploadTimelineClipRanges.length} clip window
+                            {uploadTimelineClipRanges.length === 1 ? "" : "s"} overlaid
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative pt-3">
+                        {uploadTimelineClipRanges.length > 0 && (
+                          <div className="pointer-events-none absolute inset-x-0 top-0 h-2">
+                            {uploadTimelineClipRanges.map((range) => (
+                              <div
+                                key={`range-${range.id}`}
+                                title={`${range.title}: ${formatTimestamp(range.start)} - ${formatTimestamp(
+                                  range.end
+                                )}`}
+                                className="absolute h-2 rounded bg-blue-400/70"
+                                style={{
+                                  left: `${range.leftPercent}%`,
+                                  width: `${range.widthPercent}%`
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(uploadDuration, 0)}
+                          step={0.1}
+                          value={Math.min(uploadCurrentTime, uploadDuration || 0)}
+                          onChange={onUploadSeek}
+                          disabled={uploadDuration <= 0}
+                          className="h-2 w-full cursor-pointer accent-blue-600"
+                          aria-label="Full upload timeline scrubber"
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
                 <div className="mt-3">
