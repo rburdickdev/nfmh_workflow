@@ -1,0 +1,344 @@
+"use client";
+
+import { ChangeEvent, useEffect, useState } from "react";
+import {
+  approveClip,
+  getApiBaseUrl,
+  getProviderConfig,
+  getUpload,
+  getUploadClips,
+  getUploadJobs,
+  getUploads,
+  rejectClip,
+  uploadAudio
+} from "../components/api";
+import {
+  ClipItem,
+  ProcessingJob,
+  ProcessingJobStatus,
+  ProviderConfig,
+  UploadDetail,
+  UploadItem
+} from "../components/types";
+
+export default function HomePage() {
+  const apiBaseUrl = getApiBaseUrl();
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [selectedUploadId, setSelectedUploadId] = useState<string | null>(null);
+  const [selectedUpload, setSelectedUpload] = useState<UploadDetail | null>(null);
+  const [clips, setClips] = useState<ClipItem[]>([]);
+  const [jobs, setJobs] = useState<ProcessingJob[]>([]);
+  const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function refreshUploads() {
+    try {
+      const data = await getUploads();
+      setUploads(data);
+      if (!selectedUploadId && data.length > 0) {
+        setSelectedUploadId(data[0].id);
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function refreshSelectedUpload(uploadId: string) {
+    try {
+      const [uploadDetail, clipsData, jobsData] = await Promise.all([
+        getUpload(uploadId),
+        getUploadClips(uploadId),
+        getUploadJobs(uploadId)
+      ]);
+      setSelectedUpload(uploadDetail);
+      setClips(clipsData);
+      setJobs(jobsData);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function refreshProviderConfig() {
+    try {
+      const config = await getProviderConfig();
+      setProviderConfig(config);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  useEffect(() => {
+    refreshUploads();
+    refreshProviderConfig();
+    const interval = setInterval(refreshUploads, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (selectedUploadId) {
+      refreshSelectedUpload(selectedUploadId);
+      const interval = setInterval(() => refreshSelectedUpload(selectedUploadId), 8000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedUploadId]);
+
+  async function onUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+      setError(null);
+      const uploaded = await uploadAudio(file);
+      await refreshUploads();
+      setSelectedUploadId(uploaded.id);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function onClipAction(clipId: string, action: "approve" | "reject") {
+    try {
+      if (action === "approve") await approveClip(clipId);
+      if (action === "reject") await rejectClip(clipId);
+      if (selectedUploadId) await refreshSelectedUpload(selectedUploadId);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  function getJobStatus(jobType: string): ProcessingJobStatus {
+    return jobs.find((job) => job.job_type === jobType)?.status ?? "pending";
+  }
+
+  function getStatusClass(status: ProcessingJobStatus): string {
+    if (status === "completed") return "bg-green-100 text-green-800";
+    if (status === "running") return "bg-blue-100 text-blue-800";
+    if (status === "failed") return "bg-red-100 text-red-800";
+    return "bg-slate-100 text-slate-700";
+  }
+
+  return (
+    <main className="mx-auto max-w-7xl p-4 md:p-8">
+      <header className="mb-6 rounded-lg bg-white p-4 shadow">
+        <h1 className="text-2xl font-bold">Newsroom Clipper MVP</h1>
+        <p className="text-sm text-slate-600">
+          Upload long-form MP3/WAV. The system transcribes, scores, and suggests social clips.
+        </p>
+      </header>
+
+      <section className="mb-6 rounded-lg bg-white p-4 shadow">
+        <label className="mb-2 block text-sm font-semibold">Upload Show Audio (MP3/WAV)</label>
+        <input
+          type="file"
+          accept=".mp3,.wav,audio/mpeg,audio/wav"
+          onChange={onUpload}
+          className="block w-full text-sm"
+        />
+        {isUploading && <p className="mt-2 text-sm text-blue-600">Uploading and queuing job...</p>}
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      </section>
+
+      <section className="mb-6 rounded-lg bg-white p-4 shadow">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Provider Settings (Read-Only)</h2>
+          <button
+            onClick={refreshProviderConfig}
+            className="rounded bg-slate-200 px-2 py-1 text-xs font-semibold text-slate-700"
+          >
+            Refresh
+          </button>
+        </div>
+        {!providerConfig && (
+          <p className="text-sm text-slate-600">Loading provider configuration...</p>
+        )}
+        {providerConfig && (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded border border-slate-200 p-3 text-xs">
+              <p><span className="font-semibold">AI Provider:</span> {providerConfig.ai_analysis_provider}</p>
+              <p><span className="font-semibold">Transcription:</span> {providerConfig.transcription_provider}</p>
+              <p><span className="font-semibold">Clip Extraction:</span> {providerConfig.clip_extraction_provider}</p>
+              <p><span className="font-semibold">Ollama URL:</span> {providerConfig.ollama_base_url}</p>
+              <p><span className="font-semibold">Ollama Model:</span> {providerConfig.ollama_model}</p>
+              <p><span className="font-semibold">Whisper Model:</span> {providerConfig.whisper_model}</p>
+            </div>
+            <div className="rounded border border-slate-200 p-3 text-xs">
+              <p className="mb-1 font-semibold">Supported Ollama Model Names</p>
+              <p className="mb-2">{providerConfig.supported_ollama_models.join(", ")}</p>
+              <p className="mb-1 font-semibold">Future Cloud Keys Configured</p>
+              <p>OpenAI: {providerConfig.cloud_provider_keys_configured.openai ? "yes" : "no"}</p>
+              <p>Claude: {providerConfig.cloud_provider_keys_configured.claude ? "yes" : "no"}</p>
+              <p>Deepgram: {providerConfig.cloud_provider_keys_configured.deepgram ? "yes" : "no"}</p>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <section className="rounded-lg bg-white p-4 shadow">
+          <h2 className="mb-3 text-lg font-semibold">Uploaded Shows</h2>
+          <ul className="space-y-2">
+            {uploads.map((upload) => (
+              <li
+                key={upload.id}
+                className={`cursor-pointer rounded border p-3 ${
+                  selectedUploadId === upload.id ? "border-blue-500 bg-blue-50" : "border-slate-200"
+                }`}
+                onClick={() => setSelectedUploadId(upload.id)}
+              >
+                <p className="truncate text-sm font-medium">{upload.original_filename}</p>
+                <p className="text-xs text-slate-600">Status: {upload.status}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="md:col-span-2 rounded-lg bg-white p-4 shadow">
+          <h2 className="mb-3 text-lg font-semibold">Editorial Review</h2>
+          {!selectedUpload && <p className="text-sm text-slate-600">Select an upload to review.</p>}
+
+          {selectedUpload && (
+            <div className="space-y-4">
+              <div className="rounded border border-slate-200 p-3">
+                <p className="text-sm font-semibold">{selectedUpload.original_filename}</p>
+                <p className="text-xs text-slate-600">Processing status: {selectedUpload.status}</p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Transcript preview:
+                  {" "}
+                  {(selectedUpload.transcript_text || "Transcript not ready yet.").slice(0, 600)}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <a
+                    href={`${apiBaseUrl}/uploads/${selectedUpload.id}/transcript/download?format=txt`}
+                    className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
+                  >
+                    Download Transcript (.txt)
+                  </a>
+                  <a
+                    href={`${apiBaseUrl}/uploads/${selectedUpload.id}/transcript/download?format=json`}
+                    className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
+                  >
+                    Download Transcript (.json)
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded border border-slate-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">Pipeline Progress</h3>
+                  <span className="text-xs text-slate-500">Auto-refreshes every 8s</span>
+                </div>
+                <div className="grid gap-2 md:grid-cols-3">
+                  {[
+                    { label: "Transcript Generation", key: "transcription" },
+                    { label: "Transcript Analysis", key: "analysis" },
+                    { label: "Clip Extraction", key: "clip_extraction" }
+                  ].map((stage) => {
+                    const stageStatus = getJobStatus(stage.key);
+                    return (
+                      <div key={stage.key} className="rounded border border-slate-200 p-2">
+                        <p className="text-xs font-medium">{stage.label}</p>
+                        <span
+                          className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-semibold ${getStatusClass(
+                            stageStatus
+                          )}`}
+                        >
+                          {stageStatus}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {clips.map((clip) => (
+                  <div key={clip.id} className="rounded border border-slate-200 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{clip.title}</p>
+                        <p className="text-xs text-slate-600">
+                          Score {clip.score.toFixed(1)} | {clip.start_seconds.toFixed(1)}s -{" "}
+                          {clip.end_seconds.toFixed(1)}s
+                        </p>
+                      </div>
+                      <p className="text-xs uppercase text-slate-500">{clip.status}</p>
+                    </div>
+                    <p className="mt-2 text-sm">{clip.hook_text}</p>
+                    <p className="mt-1 text-xs text-slate-600">Why selected: {clip.reason}</p>
+                    <audio controls className="mt-3 w-full">
+                      <source src={`${apiBaseUrl}/files/clips/${clip.id}.mp3`} type="audio/mpeg" />
+                    </audio>
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => onClipAction(clip.id, "approve")}
+                        className="rounded bg-green-600 px-3 py-1 text-xs font-semibold text-white"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => onClipAction(clip.id, "reject")}
+                        className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white"
+                      >
+                        Reject
+                      </button>
+                      <a
+                        href={`${apiBaseUrl}/files/clips/${clip.id}.mp3`}
+                        download={`${clip.title || clip.id}.mp3`}
+                        className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
+                      >
+                        Download MP3
+                      </a>
+                      <a
+                        href={`${apiBaseUrl}/files/captions/${clip.id}.srt`}
+                        download={`${clip.title || clip.id}.srt`}
+                        className="rounded bg-slate-700 px-3 py-1 text-xs font-semibold text-white"
+                      >
+                        Download Captions
+                      </a>
+                    </div>
+                  </div>
+                ))}
+                {clips.length === 0 && (
+                  <p className="text-sm text-slate-600">
+                    Suggested clips will appear after transcription and analysis complete.
+                  </p>
+                )}
+              </div>
+
+              {clips.length > 0 && (
+                <div className="rounded border border-slate-200 p-3">
+                  <h3 className="mb-2 text-sm font-semibold">Downloads Panel</h3>
+                  <ul className="space-y-2 text-xs">
+                    {clips.map((clip) => (
+                      <li key={`download-${clip.id}`} className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{clip.title}</span>
+                        <a
+                          href={`${apiBaseUrl}/files/clips/${clip.id}.mp3`}
+                          download={`${clip.title || clip.id}.mp3`}
+                          className="rounded bg-blue-600 px-2 py-1 font-semibold text-white"
+                        >
+                          MP3
+                        </a>
+                        <a
+                          href={`${apiBaseUrl}/files/captions/${clip.id}.srt`}
+                          download={`${clip.title || clip.id}.srt`}
+                          className="rounded bg-blue-600 px-2 py-1 font-semibold text-white"
+                        >
+                          SRT
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
