@@ -168,6 +168,7 @@ To add OpenAI/Claude/etc later:
 - `POST /upload`
 - `GET /uploads`
 - `GET /uploads/{id}`
+- `GET /uploads/{id}/audio`
 - `GET /uploads/{id}/transcript/download?format=txt|json`
 - `GET /uploads/{id}/clips`
 - `POST /clips/{id}/approve`

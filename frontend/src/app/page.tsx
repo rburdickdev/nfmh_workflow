@@ -29,6 +29,8 @@ export default function HomePage() {
   const [clips, setClips] = useState<ClipItem[]>([]);
   const [jobs, setJobs] = useState<ProcessingJob[]>([]);
   const [providerConfig, setProviderConfig] = useState<ProviderConfig | null>(null);
+  const [showUploadPlayer, setShowUploadPlayer] = useState(false);
+  const [activeClipPlayerId, setActiveClipPlayerId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +85,11 @@ export default function HomePage() {
     }
   }, [selectedUploadId]);
 
+  useEffect(() => {
+    setShowUploadPlayer(false);
+    setActiveClipPlayerId(null);
+  }, [selectedUploadId]);
+
   async function onUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -119,6 +126,13 @@ export default function HomePage() {
     if (status === "running") return "bg-blue-100 text-blue-800";
     if (status === "failed") return "bg-red-100 text-red-800";
     return "bg-slate-100 text-slate-700";
+  }
+
+  function formatTimestamp(seconds: number): string {
+    const wholeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(wholeSeconds / 60);
+    const remainder = wholeSeconds % 60;
+    return `${minutes}:${remainder.toString().padStart(2, "0")}`;
   }
 
   return (
@@ -205,11 +219,25 @@ export default function HomePage() {
               <div className="rounded border border-slate-200 p-3">
                 <p className="text-sm font-semibold">{selectedUpload.original_filename}</p>
                 <p className="text-xs text-slate-600">Processing status: {selectedUpload.status}</p>
-                <p className="mt-2 text-xs text-slate-500">
-                  Transcript preview:
-                  {" "}
-                  {(selectedUpload.transcript_text || "Transcript not ready yet.").slice(0, 600)}
-                </p>
+                <div className="mt-3">
+                  <button
+                    onClick={() => setShowUploadPlayer((current) => !current)}
+                    className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
+                  >
+                    {showUploadPlayer ? "Hide Upload Player" : "Play Uploaded MP3/WAV"}
+                  </button>
+                  {showUploadPlayer && (
+                    <audio controls className="mt-2 w-full">
+                      <source src={`${apiBaseUrl}/uploads/${selectedUpload.id}/audio`} type={selectedUpload.mime_type} />
+                    </audio>
+                  )}
+                </div>
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-semibold text-slate-600">Transcript</p>
+                  <div className="max-h-64 overflow-y-auto rounded border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+                    {selectedUpload.transcript_text || "Transcript not ready yet."}
+                  </div>
+                </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <a
                     href={`${apiBaseUrl}/uploads/${selectedUpload.id}/transcript/download?format=txt`}
@@ -252,6 +280,69 @@ export default function HomePage() {
                     );
                   })}
                 </div>
+              </div>
+
+              <div className="rounded border border-slate-200 p-3">
+                <h3 className="mb-2 text-sm font-semibold">Generated Clips</h3>
+                {clips.length === 0 && (
+                  <p className="text-sm text-slate-600">
+                    Suggested clips will appear after transcription and analysis complete.
+                  </p>
+                )}
+                {clips.length > 0 && (
+                  <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    {clips.map((clip) => (
+                      <li key={`panel-${clip.id}`} className="rounded border border-slate-200 p-2">
+                        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                          <p className="font-semibold text-slate-800">{clip.title}</p>
+                          <p className="text-slate-600">
+                            Start {formatTimestamp(clip.start_seconds)} ({clip.start_seconds.toFixed(1)}s)
+                          </p>
+                          <p className="text-slate-600">
+                            End {formatTimestamp(clip.end_seconds)} ({clip.end_seconds.toFixed(1)}s)
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          <button
+                            onClick={() =>
+                              setActiveClipPlayerId((current) => (current === clip.id ? null : clip.id))
+                            }
+                            className="rounded bg-blue-600 px-2 py-1 font-semibold text-white"
+                          >
+                            {activeClipPlayerId === clip.id ? "Hide Player" : "Play"}
+                          </button>
+                          <a
+                            href={`${apiBaseUrl}/files/clips/${clip.id}.mp3`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-800"
+                          >
+                            Open
+                          </a>
+                          <a
+                            href={`${apiBaseUrl}/files/clips/${clip.id}.mp3`}
+                            download={`${clip.title || clip.id}.mp3`}
+                            className="rounded bg-slate-700 px-2 py-1 font-semibold text-white"
+                          >
+                            Download MP3
+                          </a>
+                          <a
+                            href={`${apiBaseUrl}/files/captions/${clip.id}.srt`}
+                            download={`${clip.title || clip.id}.srt`}
+                            className="rounded bg-slate-700 px-2 py-1 font-semibold text-white"
+                          >
+                            Download Captions
+                          </a>
+                        </div>
+                        {activeClipPlayerId === clip.id && (
+                          <audio controls className="mt-2 w-full">
+                            <source src={`${apiBaseUrl}/files/clips/${clip.id}.mp3`} type="audio/mpeg" />
+                          </audio>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -303,9 +394,7 @@ export default function HomePage() {
                   </div>
                 ))}
                 {clips.length === 0 && (
-                  <p className="text-sm text-slate-600">
-                    Suggested clips will appear after transcription and analysis complete.
-                  </p>
+                  <p className="text-sm text-slate-600">No clips ready for detailed review yet.</p>
                 )}
               </div>
 

@@ -82,6 +82,21 @@ def get_upload(upload_id: str, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/uploads/{upload_id}/audio")
+def stream_uploaded_audio(upload_id: str, db: Session = Depends(get_db)):
+    upload = db.query(Upload).filter(Upload.id == upload_id).first()
+    if not upload:
+        raise HTTPException(status_code=404, detail="Upload not found")
+    if not os.path.exists(upload.storage_path):
+        raise HTTPException(status_code=404, detail="Uploaded audio file not found")
+
+    return FileResponse(
+        path=upload.storage_path,
+        media_type=upload.mime_type or "audio/mpeg",
+        filename=upload.original_filename,
+    )
+
+
 @router.get("/uploads/{upload_id}/transcript/download")
 def download_transcript(
     upload_id: str,

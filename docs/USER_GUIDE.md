@@ -67,10 +67,18 @@ Select a show in **Uploaded Shows**.
 
 In **Editorial Review**:
 
+- Play the full uploaded MP3/WAV from the source audio player
+- Read the full transcript in a scrollable transcript panel
 - Read clip title and hook text
 - See AI score and timestamps
 - Listen to audio preview
 - Review reason for selection
+
+In **Generated Clips**:
+
+- Open each clip link directly
+- Use **Play** to open an inline clip player
+- See start and end timestamps (both `mm:ss` and raw seconds) from the original upload
 
 You will also see download options for each generated clip:
 
@@ -141,6 +149,11 @@ If you need model/provider changes, contact your developer/admin.
 
 - Refresh the page.
 - If still broken, ask technical staff to confirm backend is running.
+
+### Uploaded source audio does not play
+
+- Confirm backend is running at `http://localhost:8000`.
+- Ask technical staff to verify the upload still exists in `storage/uploads`.
 
 ### Download links fail
 

@@ -28,6 +28,9 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    os.makedirs(settings.storage_path, exist_ok=True)
+    os.makedirs(settings.uploads_dir, exist_ok=True)
+    os.makedirs(settings.transcripts_dir, exist_ok=True)
     os.makedirs(settings.clips_dir, exist_ok=True)
     os.makedirs(settings.captions_dir, exist_ok=True)
 

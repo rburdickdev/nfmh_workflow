@@ -38,6 +38,7 @@ Artifact outputs:
 
 Served download URLs:
 
+- Uploaded source audio stream: `/uploads/{upload_id}/audio`
 - Clips: `/files/clips/{clip_id}.mp3`
 - Captions: `/files/captions/{clip_id}.srt`
 - Transcripts: `/uploads/{upload_id}/transcript/download?format=txt|json`
@@ -65,6 +66,7 @@ Served download URLs:
 - `POST /upload`
 - `GET /uploads`
 - `GET /uploads/{id}`
+- `GET /uploads/{id}/audio`
 - `GET /uploads/{id}/transcript/download?format=txt|json`
 - `GET /uploads/{id}/clips`
 - `POST /clips/{id}/approve`
@@ -230,6 +232,9 @@ This design avoids major refactors when moving from local to cloud AI.
 
 The newsroom UI includes:
 
+- A source audio playback toggle for the uploaded MP3/WAV in Editorial Review
+- A scrollable full transcript panel for long transcript text
+- A **Generated Clips** panel with per-clip title links, inline play button, and source start/end timestamps
 - Per-clip download buttons (MP3 + SRT) in each editorial clip card
 - A **Downloads Panel** listing all generated clips with quick links
 - Transcript download buttons (`.txt` and `.json`) for selected upload

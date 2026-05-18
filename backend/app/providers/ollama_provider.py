@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import httpx
 
@@ -102,12 +103,56 @@ Return only valid JSON array.
 
 
 def _safe_parse_json_list(raw: str) -> list[dict]:
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    parsed = _parse_json_payload(cleaned)
+    if parsed:
+        return parsed
+
+    # Fallback: model sometimes returns explanatory text around JSON.
+    first_bracket = cleaned.find("[")
+    last_bracket = cleaned.rfind("]")
+    if first_bracket != -1 and last_bracket > first_bracket:
+        candidate = cleaned[first_bracket : last_bracket + 1]
+        parsed = _parse_json_payload(candidate)
+        if parsed:
+            return parsed
+
+    logger.warning("Failed to decode Ollama response into a clip list")
+    return []
+
+
+def _parse_json_payload(raw: str) -> list[dict]:
     try:
         parsed = json.loads(raw)
+        if isinstance(parsed, str):
+            return _parse_json_payload(parsed)
         if isinstance(parsed, list):
             return [item for item in parsed if isinstance(item, dict)]
+        if isinstance(parsed, dict):
+            # Common provider wrappers: {"clips":[...]}, {"suggestions":[...]}, etc.
+            preferred_keys = [
+                "clips",
+                "suggestions",
+                "clip_suggestions",
+                "results",
+                "items",
+                "output",
+            ]
+            for key in preferred_keys:
+                value = parsed.get(key)
+                if isinstance(value, list):
+                    return [item for item in value if isinstance(item, dict)]
+
+            # Last resort: pick the first list-like value from the object.
+            for value in parsed.values():
+                if isinstance(value, list):
+                    return [item for item in value if isinstance(item, dict)]
     except json.JSONDecodeError:
-        logger.warning("Failed to decode Ollama response as JSON list")
+        return []
     return []
 
 
