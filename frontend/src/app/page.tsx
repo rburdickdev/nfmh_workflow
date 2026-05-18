@@ -207,15 +207,15 @@ export default function HomePage() {
       <header className="mb-6 rounded-lg bg-white p-4 shadow">
         <h1 className="text-2xl font-bold">Newsroom Clipper MVP</h1>
         <p className="text-sm text-slate-600">
-          Upload long-form MP3/WAV. The system transcribes, scores, and suggests social clips.
+          Upload long-form MP3/WAV/M4A. The system transcribes, scores, and suggests social clips.
         </p>
       </header>
 
       <section className="mb-6 rounded-lg bg-white p-4 shadow">
-        <label className="mb-2 block text-sm font-semibold">Upload Show Audio (MP3/WAV)</label>
+        <label className="mb-2 block text-sm font-semibold">Upload Show Audio (MP3/WAV/M4A)</label>
         <input
           type="file"
-          accept=".mp3,.wav,audio/mpeg,audio/wav"
+          accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4,audio/x-m4a,audio/m4a"
           onChange={onUpload}
           className="block w-full text-sm"
         />
@@ -291,7 +291,7 @@ export default function HomePage() {
                     onClick={() => setShowUploadPlayer((current) => !current)}
                     className="rounded bg-blue-600 px-3 py-1 text-xs font-semibold text-white"
                   >
-                    {showUploadPlayer ? "Hide Upload Player" : "Play Uploaded MP3/WAV"}
+                    {showUploadPlayer ? "Hide Upload Player" : "Play Uploaded Audio"}
                   </button>
                   {showUploadPlayer && (
                     <div className="mt-3 space-y-2 rounded border border-slate-200 bg-slate-50 p-3">

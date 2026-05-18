@@ -9,7 +9,7 @@ Additional documentation:
 
 This project is designed for non-technical newsroom operators:
 
-1. Upload long-form MP3/WAV.
+1. Upload long-form MP3/WAV/M4A.
 2. System auto-processes in background.
 3. Editorial team reviews suggested clips.
 4. Team approves/rejects clips for social publishing.
@@ -33,7 +33,7 @@ This project is designed for non-technical newsroom operators:
 
 ### Processing flow
 
-1. `POST /upload` stores MP3/WAV in `storage/uploads`
+1. `POST /upload` stores MP3/WAV/M4A in `storage/uploads`
 2. API queues Celery task
 3. Worker transcribes audio with local Whisper
 4. Worker chunks transcript and calls Ollama for hook detection
@@ -235,7 +235,7 @@ Tables are auto-created on startup for MVP simplicity.
 ### FFmpeg failures
 
 - Check backend/worker logs for command output
-- Confirm source file is valid MP3/WAV
+- Confirm source file is valid MP3/WAV/M4A
 
 ---
 

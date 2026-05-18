@@ -4,7 +4,7 @@ import shutil
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -21,8 +21,16 @@ from app.workers.celery_app import celery_app
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-ALLOWED_MIME_TYPES = {"audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav"}
-ALLOWED_EXTENSIONS = {".mp3", ".wav"}
+ALLOWED_MIME_TYPES = {
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/m4a",
+    "audio/mp4",
+    "audio/x-m4a",
+}
+ALLOWED_EXTENSIONS = {".mp3", ".wav", ".m4a"}
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -33,7 +41,7 @@ def upload_audio(file: UploadFile = File(...), db: Session = Depends(get_db)):
     # Some browsers/clients send generic MIME types (for example, application/octet-stream).
     # To keep operator UX simple, accept file when either MIME or extension is recognized.
     if file.content_type not in ALLOWED_MIME_TYPES and extension not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Only MP3 and WAV files are supported")
+        raise HTTPException(status_code=400, detail="Only MP3, WAV, and M4A files are supported")
 
     upload_id = str(uuid.uuid4())
     destination_path = os.path.join(settings.uploads_dir, f"{upload_id}{extension}")

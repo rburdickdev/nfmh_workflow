@@ -232,7 +232,7 @@ This design avoids major refactors when moving from local to cloud AI.
 
 The newsroom UI includes:
 
-- A source audio playback toggle for the uploaded MP3/WAV in Editorial Review
+- A source audio playback toggle for uploaded MP3/WAV/M4A in Editorial Review
 - A scrollable full transcript panel for long transcript text
 - A **Generated Clips** panel with per-clip title links, inline play button, and source start/end timestamps
 - Per-clip download buttons (MP3 + SRT) in each editorial clip card
