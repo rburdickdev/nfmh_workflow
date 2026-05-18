@@ -169,6 +169,18 @@ export default function HomePage() {
       .sort((a, b) => a.start - b.start);
   }, [clips, uploadDuration]);
 
+  const orderedClips = useMemo(() => {
+    return [...clips].sort((a, b) => {
+      if (a.start_seconds !== b.start_seconds) {
+        return a.start_seconds - b.start_seconds;
+      }
+      if (a.end_seconds !== b.end_seconds) {
+        return a.end_seconds - b.end_seconds;
+      }
+      return b.score - a.score;
+    });
+  }, [clips]);
+
   async function toggleUploadPlayback() {
     if (!uploadAudioRef.current) {
       return;
@@ -405,14 +417,14 @@ export default function HomePage() {
 
               <div className="rounded border border-slate-200 p-3">
                 <h3 className="mb-2 text-sm font-semibold">Generated Clips</h3>
-                {clips.length === 0 && (
+                {orderedClips.length === 0 && (
                   <p className="text-sm text-slate-600">
                     Suggested clips will appear after transcription and analysis complete.
                   </p>
                 )}
-                {clips.length > 0 && (
+                {orderedClips.length > 0 && (
                   <ul className="max-h-72 space-y-2 overflow-y-auto pr-1">
-                    {clips.map((clip) => (
+                    {orderedClips.map((clip) => (
                       <li key={`panel-${clip.id}`} className="rounded border border-slate-200 p-2">
                         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
                           <p className="font-semibold text-slate-800">{clip.title}</p>
@@ -467,7 +479,7 @@ export default function HomePage() {
               </div>
 
               <div className="space-y-3">
-                {clips.map((clip) => (
+                {orderedClips.map((clip) => (
                   <div key={clip.id} className="rounded border border-slate-200 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -514,16 +526,16 @@ export default function HomePage() {
                     </div>
                   </div>
                 ))}
-                {clips.length === 0 && (
+                {orderedClips.length === 0 && (
                   <p className="text-sm text-slate-600">No clips ready for detailed review yet.</p>
                 )}
               </div>
 
-              {clips.length > 0 && (
+              {orderedClips.length > 0 && (
                 <div className="rounded border border-slate-200 p-3">
                   <h3 className="mb-2 text-sm font-semibold">Downloads Panel</h3>
                   <ul className="space-y-2 text-xs">
-                    {clips.map((clip) => (
+                    {orderedClips.map((clip) => (
                       <li key={`download-${clip.id}`} className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{clip.title}</span>
                         <a
