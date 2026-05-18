@@ -48,15 +48,18 @@ class OllamaAnalysisProvider(AIAnalysisProvider):
             )
             clip_candidates.extend(_convert_candidates(parsed, segments))
 
+        deduped_candidates = _dedupe_candidates(clip_candidates)
+        deduped_candidates.sort(key=lambda c: c.score, reverse=True)
         clip_candidates.sort(key=lambda c: c.score, reverse=True)
         logger.info(
             "Transcript analysis finished",
             extra={
                 "raw_candidate_count": len(clip_candidates),
-                "returned_candidates": min(len(clip_candidates), settings.max_suggested_clips),
+                "deduped_candidate_count": len(deduped_candidates),
+                "returned_candidates": min(len(deduped_candidates), settings.max_suggested_clips),
             },
         )
-        return clip_candidates[: settings.max_suggested_clips]
+        return deduped_candidates[: settings.max_suggested_clips]
 
     def _query_ollama(self, prompt: str, base_url: str, model: str) -> str:
         endpoint = f"{base_url.rstrip('/')}/api/generate"
@@ -177,6 +180,49 @@ def _convert_candidates(items: list[dict], segments: list[dict]) -> list[ClipSug
             )
         )
     return suggestions
+
+
+def _dedupe_candidates(candidates: list[ClipSuggestion]) -> list[ClipSuggestion]:
+    deduped: list[ClipSuggestion] = []
+    for candidate in sorted(candidates, key=lambda c: c.score, reverse=True):
+        duplicate_idx = _find_duplicate_candidate_index(candidate, deduped)
+        if duplicate_idx is None:
+            deduped.append(candidate)
+            continue
+
+        existing = deduped[duplicate_idx]
+        if _candidate_quality(candidate) > _candidate_quality(existing):
+            deduped[duplicate_idx] = candidate
+    return deduped
+
+
+def _find_duplicate_candidate_index(
+    candidate: ClipSuggestion, existing_candidates: list[ClipSuggestion]
+) -> int | None:
+    candidate_key = _normalized_text_key(candidate)
+    for idx, existing in enumerate(existing_candidates):
+        if _is_same_time_window(candidate, existing):
+            return idx
+        if candidate_key and candidate_key == _normalized_text_key(existing):
+            return idx
+    return None
+
+
+def _is_same_time_window(a: ClipSuggestion, b: ClipSuggestion) -> bool:
+    start_close = abs(a.start_seconds - b.start_seconds) <= 3.0
+    end_close = abs(a.end_seconds - b.end_seconds) <= 3.0
+    return start_close and end_close
+
+
+def _normalized_text_key(candidate: ClipSuggestion) -> str:
+    text = f"{candidate.title} {candidate.hook_text}".lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    words = [word for word in text.split() if len(word) > 2]
+    return " ".join(words[:12])
+
+
+def _candidate_quality(candidate: ClipSuggestion) -> tuple[float, int, int]:
+    return (candidate.score, len(candidate.hook_text), len(candidate.title))
 
 
 def _estimate_timestamps(quote_snippet: str, segments: list[dict]) -> tuple[float, float]:
