@@ -33,19 +33,19 @@ This project is designed for non-technical newsroom operators:
 
 ### Processing flow
 
-1. `POST /upload` stores MP3/WAV/M4A in `storage/uploads`
+1. `POST /upload` stores MP3/WAV/M4A in `/storage/uploads` (inside a Docker-managed volume)
 2. API queues Celery task
 3. Worker transcribes audio with local Whisper
 4. Worker chunks transcript and calls Ollama for hook detection
 5. Worker extracts clips with FFmpeg and writes SRT captions
 6. Suggested clips are stored in Postgres and shown in frontend
 
-### Storage structure
+### Storage structure (inside Docker volume mounted at `/storage`)
 
-- `storage/uploads` - original uploads
-- `storage/transcripts` - transcript TXT + JSON
-- `storage/clips` - extracted MP3 clips
-- `storage/captions` - generated SRT captions
+- `/storage/uploads` - original uploads
+- `/storage/transcripts` - transcript TXT + JSON
+- `/storage/clips` - extracted MP3 clips
+- `/storage/captions` - generated SRT captions
 
 ---
 
@@ -95,6 +95,20 @@ docker compose up --build
 - Frontend UI: `http://localhost:3000`
 - Backend API docs: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
+
+### Export storage artifacts to local folder
+
+To copy uploads, clips, transcripts, and captions from the Docker volume to your machine:
+
+```bash
+./scripts/export_storage.sh
+```
+
+Optional custom destination:
+
+```bash
+./scripts/export_storage.sh ./my_exports
+```
 
 ---
 

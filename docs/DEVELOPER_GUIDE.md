@@ -22,7 +22,7 @@ External dependency:
 
 Core flow:
 
-1. `POST /upload` stores file in `storage/uploads`.
+1. `POST /upload` stores file in `/storage/uploads` (Docker-managed volume).
 2. Backend enqueues Celery task.
 3. Worker transcribes audio (local Whisper).
 4. Worker analyzes transcript (Ollama model from env).
@@ -31,10 +31,10 @@ Core flow:
 
 Artifact outputs:
 
-- Uploaded files: `storage/uploads`
-- Transcript artifacts: `storage/transcripts`
-- Extracted clip audio: `storage/clips`
-- Caption files: `storage/captions`
+- Uploaded files: `/storage/uploads`
+- Transcript artifacts: `/storage/transcripts`
+- Extracted clip audio: `/storage/clips`
+- Caption files: `/storage/captions`
 
 Served download URLs:
 

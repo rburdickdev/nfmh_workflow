@@ -153,7 +153,7 @@ If you need model/provider changes, contact your developer/admin.
 ### Uploaded source audio does not play
 
 - Confirm backend is running at `http://localhost:8000`.
-- Ask technical staff to verify the upload still exists in `storage/uploads`.
+- Ask technical staff to verify the upload still exists in `/storage/uploads` (inside the app volume).
 
 ### Download links fail
 

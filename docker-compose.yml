@@ -40,7 +40,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./storage:${STORAGE_PATH}
+      - app_storage:${STORAGE_PATH}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
       - PYTHONPATH=/app
     volumes:
       - ./backend:/app
-      - ./storage:${STORAGE_PATH}
+      - app_storage:${STORAGE_PATH}
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,3 +84,4 @@ services:
 
 volumes:
   postgres_data:
+  app_storage:
