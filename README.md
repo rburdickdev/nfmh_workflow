@@ -35,7 +35,7 @@ This project is designed for non-technical newsroom operators:
 
 1. `POST /upload` stores MP3/WAV/M4A in `/storage/uploads` (inside a Docker-managed volume)
 2. API queues Celery task
-3. Worker transcribes audio with local Whisper
+3. Worker normalizes upload to 44.1kHz stereo WAV and transcribes that WAV with local Whisper
 4. Worker chunks transcript and calls Ollama for hook detection
 5. Worker extracts clips with FFmpeg and writes SRT captions
 6. Suggested clips are stored in Postgres and shown in frontend
@@ -43,6 +43,7 @@ This project is designed for non-technical newsroom operators:
 ### Storage structure (inside Docker volume mounted at `/storage`)
 
 - `/storage/uploads` - original uploads
+- `/storage/normalized_audio` - normalized WAV files used for transcription
 - `/storage/transcripts` - transcript TXT + JSON
 - `/storage/clips` - extracted MP3 clips
 - `/storage/captions` - generated SRT captions

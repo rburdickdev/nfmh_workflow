@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import subprocess
 import uuid
 
 from sqlalchemy.orm import Session
@@ -41,7 +42,8 @@ def process_upload(upload_id: str, db: Session) -> None:
         db.commit()
         logger.info("Transcription started", extra={"upload_id": upload_id, "stage": "transcription"})
         transcription_provider = get_transcription_provider()
-        transcript_result = transcription_provider.transcribe(upload.storage_path)
+        transcription_audio_path = _normalize_audio_for_transcription(upload, settings)
+        transcript_result = transcription_provider.transcribe(transcription_audio_path)
         transcript_text_path = os.path.join(settings.transcripts_dir, f"{upload_id}.txt")
         transcript_json_path = os.path.join(settings.transcripts_dir, f"{upload_id}.json")
 
@@ -177,3 +179,48 @@ def _create_or_reset_job(db: Session, upload_id: str, job_type: str) -> Processi
     db.commit()
     db.refresh(job)
     return job
+
+
+def _normalize_audio_for_transcription(upload: Upload, settings) -> str:
+    """
+    Normalize source audio to WAV for stable transcription performance.
+
+    Regardless of upload format (MP3/WAV/M4A), Whisper consumes a fresh
+    44.1kHz stereo WAV artifact generated for the transcription stage.
+    """
+    os.makedirs(settings.normalized_audio_dir, exist_ok=True)
+    normalized_path = os.path.join(settings.normalized_audio_dir, f"{upload.id}.wav")
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        upload.storage_path,
+        "-ar",
+        str(settings.transcription_wav_sample_rate),
+        "-ac",
+        str(settings.transcription_wav_channels),
+        normalized_path,
+    ]
+    logger.info(
+        "Normalizing audio for transcription",
+        extra={
+            "upload_id": upload.id,
+            "source_audio_path": upload.storage_path,
+            "normalized_audio_path": normalized_path,
+            "sample_rate": settings.transcription_wav_sample_rate,
+            "channels": settings.transcription_wav_channels,
+        },
+    )
+    try:
+        subprocess.run(command, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        logger.error(
+            "Audio normalization failed",
+            extra={
+                "upload_id": upload.id,
+                "command": " ".join(command),
+                "stderr": exc.stderr,
+            },
+        )
+        raise RuntimeError("Failed to normalize audio to WAV for transcription") from exc
+    return normalized_path

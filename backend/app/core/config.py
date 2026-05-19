@@ -58,9 +58,12 @@ class Settings(BaseSettings):
 
     storage_path: str = "/storage"
     uploads_dir: str = "/storage/uploads"
+    normalized_audio_dir: str = "/storage/normalized_audio"
     transcripts_dir: str = "/storage/transcripts"
     clips_dir: str = "/storage/clips"
     captions_dir: str = "/storage/captions"
+    transcription_wav_sample_rate: int = 44100
+    transcription_wav_channels: int = 2
 
     # Optional future cloud credentials.
     # Keep blank unless migrating to cloud providers.

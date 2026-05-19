@@ -16,6 +16,7 @@ configure_logging()
 def ensure_storage_dirs() -> None:
     os.makedirs(settings.storage_path, exist_ok=True)
     os.makedirs(settings.uploads_dir, exist_ok=True)
+    os.makedirs(settings.normalized_audio_dir, exist_ok=True)
     os.makedirs(settings.transcripts_dir, exist_ok=True)
     os.makedirs(settings.clips_dir, exist_ok=True)
     os.makedirs(settings.captions_dir, exist_ok=True)

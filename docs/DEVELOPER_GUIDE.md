@@ -24,7 +24,7 @@ Core flow:
 
 1. `POST /upload` stores file in `/storage/uploads` (Docker-managed volume).
 2. Backend enqueues Celery task.
-3. Worker transcribes audio (local Whisper).
+3. Worker normalizes source audio to 44.1kHz stereo WAV, then transcribes that WAV (local Whisper).
 4. Worker analyzes transcript (Ollama model from env).
 5. Worker extracts clips/captions (FFmpeg).
 6. Frontend renders status and suggested clips.
@@ -32,6 +32,7 @@ Core flow:
 Artifact outputs:
 
 - Uploaded files: `/storage/uploads`
+- Normalized transcription audio: `/storage/normalized_audio`
 - Transcript artifacts: `/storage/transcripts`
 - Extracted clip audio: `/storage/clips`
 - Caption files: `/storage/captions`
