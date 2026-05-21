@@ -16,6 +16,8 @@ from app.models.upload import Upload
 from app.schemas.clip import ClipResponse
 from app.schemas.upload import UploadResponse
 from app.schemas.upload_detail import UploadDetailResponse
+from app.schemas.youtube import YouTubeUploadRequest, YouTubeUploadResponse
+from app.services.youtube_upload import upload_clip_to_youtube
 from app.workers.celery_app import celery_app
 
 router = APIRouter()
@@ -239,6 +241,50 @@ def reject_clip(clip_id: str, db: Session = Depends(get_db)):
     return clip
 
 
+@router.post("/clips/{clip_id}/youtube/upload", response_model=YouTubeUploadResponse)
+def upload_clip_to_youtube_endpoint(
+    clip_id: str,
+    payload: YouTubeUploadRequest,
+    db: Session = Depends(get_db),
+):
+    clip = db.query(Clip).filter(Clip.id == clip_id).first()
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    if clip.status != ClipStatus.approved:
+        raise HTTPException(status_code=400, detail="Clip must be approved before YouTube upload")
+    if not os.path.exists(clip.clip_path):
+        raise HTTPException(status_code=404, detail="Clip audio file not found")
+    if not os.path.exists(clip.captions_path):
+        raise HTTPException(status_code=404, detail="Clip captions file not found")
+
+    upload = db.query(Upload).filter(Upload.id == clip.upload_id).first()
+    if not upload:
+        raise HTTPException(status_code=404, detail="Upload not found")
+
+    try:
+        result = upload_clip_to_youtube(
+            settings=get_settings(),
+            clip=clip,
+            upload=upload,
+            title=payload.title,
+            description=payload.description,
+            privacy_status=payload.privacy_status,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("YouTube upload failed", extra={"clip_id": clip_id})
+        raise HTTPException(status_code=500, detail=f"YouTube upload failed: {exc}") from exc
+
+    return YouTubeUploadResponse(
+        clip_id=clip.id,
+        youtube_video_id=result.video_id,
+        youtube_url=result.video_url,
+        rendered_video_path=result.rendered_video_path,
+        thumbnail_path=result.thumbnail_path,
+    )
+
+
 @router.get("/config/providers")
 def get_provider_config():
     """
@@ -261,5 +307,10 @@ def get_provider_config():
             "openai": bool(settings.openai_api_key),
             "claude": bool(settings.claude_api_key),
             "deepgram": bool(settings.deepgram_api_key),
+            "youtube": bool(
+                settings.youtube_client_id
+                and settings.youtube_client_secret
+                and settings.youtube_refresh_token
+            ),
         },
     }

@@ -20,6 +20,8 @@ def ensure_storage_dirs() -> None:
     os.makedirs(settings.transcripts_dir, exist_ok=True)
     os.makedirs(settings.clips_dir, exist_ok=True)
     os.makedirs(settings.captions_dir, exist_ok=True)
+    os.makedirs(settings.youtube_videos_dir, exist_ok=True)
+    os.makedirs(settings.youtube_thumbnails_dir, exist_ok=True)
 
 
 # Must exist before StaticFiles mounts at import time.

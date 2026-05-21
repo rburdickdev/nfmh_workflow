@@ -10,6 +10,7 @@ import {
   getUploadJobs,
   getUploads,
   rejectClip,
+  uploadClipToYoutube,
   uploadAudio
 } from "../components/api";
 import {
@@ -17,6 +18,7 @@ import {
   ProcessingJob,
   ProcessingJobStatus,
   ProviderConfig,
+  YouTubeUploadResult,
   UploadDetail,
   UploadItem
 } from "../components/types";
@@ -36,6 +38,9 @@ export default function HomePage() {
   const [uploadCurrentTime, setUploadCurrentTime] = useState(0);
   const [isUploadPlaying, setIsUploadPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [youtubeUploadingClipId, setYoutubeUploadingClipId] = useState<string | null>(null);
+  const [youtubeUploadLinks, setYoutubeUploadLinks] = useState<Record<string, string>>({});
+  const [youtubeUploadErrors, setYoutubeUploadErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   async function refreshUploads() {
@@ -181,6 +186,10 @@ export default function HomePage() {
     });
   }, [clips]);
 
+  const approvedClips = useMemo(() => {
+    return orderedClips.filter((clip) => clip.status === "approved");
+  }, [orderedClips]);
+
   async function toggleUploadPlayback() {
     if (!uploadAudioRef.current) {
       return;
@@ -199,6 +208,29 @@ export default function HomePage() {
     setUploadCurrentTime(targetSeconds);
     if (uploadAudioRef.current) {
       uploadAudioRef.current.currentTime = targetSeconds;
+    }
+  }
+
+  async function onYoutubeUpload(clip: ClipItem) {
+    try {
+      setYoutubeUploadingClipId(clip.id);
+      setYoutubeUploadErrors((current) => {
+        const next = { ...current };
+        delete next[clip.id];
+        return next;
+      });
+      const result: YouTubeUploadResult = await uploadClipToYoutube(clip.id, {
+        title: clip.title,
+        description: `${clip.hook_text}\n\nWhy selected: ${clip.reason}`
+      });
+      setYoutubeUploadLinks((current) => ({ ...current, [clip.id]: result.youtube_url }));
+    } catch (err) {
+      setYoutubeUploadErrors((current) => ({
+        ...current,
+        [clip.id]: (err as Error).message
+      }));
+    } finally {
+      setYoutubeUploadingClipId(null);
     }
   }
 
@@ -253,6 +285,7 @@ export default function HomePage() {
               <p>OpenAI: {providerConfig.cloud_provider_keys_configured.openai ? "yes" : "no"}</p>
               <p>Claude: {providerConfig.cloud_provider_keys_configured.claude ? "yes" : "no"}</p>
               <p>Deepgram: {providerConfig.cloud_provider_keys_configured.deepgram ? "yes" : "no"}</p>
+              <p>YouTube: {providerConfig.cloud_provider_keys_configured.youtube ? "yes" : "no"}</p>
             </div>
           </div>
         )}
@@ -524,6 +557,55 @@ export default function HomePage() {
                 ))}
                 {orderedClips.length === 0 && (
                   <p className="text-sm text-slate-600">No clips ready for detailed review yet.</p>
+                )}
+              </div>
+
+              <div className="rounded border border-slate-200 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold">YouTube Upload Queue</h3>
+                  <span className="text-xs text-slate-500">Approved clips only</span>
+                </div>
+                {approvedClips.length === 0 && (
+                  <p className="text-sm text-slate-600">
+                    Approve clips to add them to the YouTube upload queue.
+                  </p>
+                )}
+                {approvedClips.length > 0 && (
+                  <ul className="space-y-2">
+                    {approvedClips.map((clip) => (
+                      <li
+                        key={`yt-${clip.id}`}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-200 p-2 text-xs"
+                      >
+                        <div>
+                          <p className="font-semibold text-slate-800">{clip.title}</p>
+                          <p className="text-slate-600">
+                            {formatTimestamp(clip.start_seconds)} - {formatTimestamp(clip.end_seconds)}
+                          </p>
+                          {youtubeUploadLinks[clip.id] && (
+                            <a
+                              href={youtubeUploadLinks[clip.id]}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-blue-700 underline"
+                            >
+                              Uploaded: open on YouTube
+                            </a>
+                          )}
+                          {youtubeUploadErrors[clip.id] && (
+                            <p className="text-red-600">{youtubeUploadErrors[clip.id]}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => onYoutubeUpload(clip)}
+                          disabled={youtubeUploadingClipId === clip.id}
+                          className="rounded bg-red-600 px-3 py-1 font-semibold text-white disabled:opacity-60"
+                        >
+                          {youtubeUploadingClipId === clip.id ? "Uploading..." : "Upload to YouTube"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 

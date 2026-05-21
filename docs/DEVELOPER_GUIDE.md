@@ -72,6 +72,7 @@ Served download URLs:
 - `GET /uploads/{id}/clips`
 - `POST /clips/{id}/approve`
 - `POST /clips/{id}/reject`
+- `POST /clips/{id}/youtube/upload`
 - `GET /config/providers`
 
 ---

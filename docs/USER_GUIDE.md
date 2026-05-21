@@ -91,8 +91,17 @@ For each suggested clip:
 
 - Click **Approve** to keep it for social
 - Click **Reject** to discard it
+- Approved clips are automatically added to the **YouTube Upload Queue**
 
-## 6) Download Clips and Transcripts
+## 6) Upload Approved Clips to YouTube
+
+In **YouTube Upload Queue**:
+
+1. Review approved clips.
+2. Click **Upload to YouTube** for the clip you want to publish.
+3. Wait for the upload to finish, then use the YouTube link shown in the queue.
+
+## 7) Download Clips and Transcripts
 
 For the currently selected upload:
 

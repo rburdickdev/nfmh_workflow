@@ -43,6 +43,7 @@ export type ProviderConfig = {
     openai: boolean;
     claude: boolean;
     deepgram: boolean;
+    youtube: boolean;
   };
 };
 
@@ -55,4 +56,18 @@ export type ProcessingJob = {
   error_message: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type YouTubeUploadRequest = {
+  title?: string;
+  description?: string;
+  privacy_status?: "private" | "unlisted" | "public";
+};
+
+export type YouTubeUploadResult = {
+  clip_id: string;
+  youtube_video_id: string;
+  youtube_url: string;
+  rendered_video_path: string;
+  thumbnail_path: string;
 };

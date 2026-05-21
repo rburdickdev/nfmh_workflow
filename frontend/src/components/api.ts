@@ -2,6 +2,8 @@ import {
   ClipItem,
   ProcessingJob,
   ProviderConfig,
+  YouTubeUploadRequest,
+  YouTubeUploadResult,
   UploadDetail,
   UploadItem
 } from "./types";
@@ -77,6 +79,24 @@ export async function getProviderConfig(): Promise<ProviderConfig> {
   const response = await fetch(`${API_BASE}/config/providers`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Failed to fetch provider configuration");
+  }
+  return response.json();
+}
+
+export async function uploadClipToYoutube(
+  clipId: string,
+  payload: YouTubeUploadRequest = {}
+): Promise<YouTubeUploadResult> {
+  const response = await fetch(`${API_BASE}/clips/${clipId}/youtube/upload`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Failed to upload clip to YouTube");
   }
   return response.json();
 }

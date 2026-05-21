@@ -62,8 +62,18 @@ class Settings(BaseSettings):
     transcripts_dir: str = "/storage/transcripts"
     clips_dir: str = "/storage/clips"
     captions_dir: str = "/storage/captions"
+    youtube_videos_dir: str = "/storage/youtube/videos"
+    youtube_thumbnails_dir: str = "/storage/youtube/thumbnails"
     transcription_wav_sample_rate: int = 44100
     transcription_wav_channels: int = 2
+
+    youtube_client_id: str | None = None
+    youtube_client_secret: str | None = None
+    youtube_refresh_token: str | None = None
+    youtube_token_uri: str = "https://oauth2.googleapis.com/token"
+    youtube_privacy_status: str = "unlisted"
+    youtube_category_id: str = "22"
+    youtube_default_tags: str = "news,radio,podcast,shorts"
 
     # Optional future cloud credentials.
     # Keep blank unless migrating to cloud providers.
