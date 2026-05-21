@@ -62,6 +62,35 @@ Served download URLs:
 
 ---
 
+## Transcript and Clip Processing Components
+
+This section maps each processing responsibility to the exact implementation file.
+
+Pipeline flow:
+
+1. Audio upload enters the processing pipeline.
+2. Whisper performs speech-to-text transcription.
+3. The analysis provider (Ollama by default) identifies candidate clip windows.
+4. FFmpeg extracts clip media and writes SRT captions.
+
+Component responsibilities:
+
+- `backend/app/services/pipeline.py` - orchestration of transcription, analysis, and extraction steps
+- `backend/app/providers/whisper_provider.py` - `faster-whisper` transcription provider
+- `backend/app/providers/base.py` - provider interfaces and `ClipSuggestion` schema
+- `backend/app/providers/factory.py` - runtime provider selection from environment settings
+- `backend/app/providers/ollama_provider.py` - transcript analysis and clip suggestion generation
+- `backend/app/services/chunking.py` - transcript chunking before model analysis
+- `backend/app/providers/ffmpeg_provider.py` - clip extraction and SRT generation
+
+Quick clarification:
+
+- Whisper is transcription only.
+- Clip selection is analysis-provider logic (Ollama by default).
+- Clip extraction and caption file generation are FFmpeg-provider logic.
+
+---
+
 ## API Endpoints
 
 - `POST /upload`
